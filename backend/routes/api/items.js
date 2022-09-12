@@ -53,24 +53,19 @@ router.get("/", auth.optional, function (req, res, next) {
     query.tagList = { $in: [req.query.tag] };
   }
 
-  // Add a query by title using url params
-  const titleSearch = req.query.title;
-
-  Item.find({ title: { $regex: titleSearch, $options: "i" } })
-    .then((title) => {
-      return res.json({ title: title });
-    })
-    .catch(next);
-
   Promise.all([
     req.query.seller ? User.findOne({ username: req.query.seller }) : null,
     req.query.favorited
       ? User.findOne({ username: req.query.favorited })
       : null,
+    req.query.title
+      ? Item.find({ title: { $regex: req.query.title, $options: "i" } })
+      : null,
   ])
     .then(function (results) {
       var seller = results[0];
       var favoriter = results[1];
+      var titleSearch = results[2];
 
       if (seller) {
         query.seller = seller._id;
@@ -80,6 +75,10 @@ router.get("/", auth.optional, function (req, res, next) {
         query._id = { $in: favoriter.favorites };
       } else if (req.query.favorited) {
         query._id = { $in: [] };
+      }
+
+      if (titleSearch) {
+        query.title = { $regex: req.query.title };
       }
 
       return Promise.all([
